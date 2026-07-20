@@ -24,6 +24,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Prepare autopilot branch
+        id: prep_branch
+        run: |
+          set -euo pipefail
+          branch="autopilot-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git checkout -b "$branch"
+          echo "work_branch=$branch" >> "$GITHUB_OUTPUT"
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -66,11 +74,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PR_CREATOR_TOKEN || secrets.COPILOT_GITHUB_TOKEN }}
           INSTRUCTION: ${{ inputs.instruction }}
+          WORK_BRANCH: ${{ steps.prep_branch.outputs.work_branch }}
         run: |
           set -euo pipefail
 
           base_branch="${GITHUB_REF_NAME}"
           current_branch="$(git rev-parse --abbrev-ref HEAD)"
+
+          if [ "$current_branch" = "$base_branch" ] && [ -n "${WORK_BRANCH:-}" ]; then
+            git checkout "$WORK_BRANCH" || true
+            current_branch="$(git rev-parse --abbrev-ref HEAD)"
+          fi
 
           if [ "$current_branch" = "$base_branch" ]; then
             echo "Copilot finished on base branch ($base_branch); no feature branch detected for PR creation."
