@@ -113,4 +113,5 @@ jobs:
           else
             echo "Automated PR creation is blocked by repository/org policy for this token."
             echo "Create PR manually at: https://github.com/${REPO}/pull/new/${branch}"
+            exit 1
           fi
