@@ -1,0 +1,31 @@
+name: Copilot Autopilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      instruction:
+        description: "Autopilot instruction"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  autopilot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Copilot CLI
+        run: npm install -g @github/copilot
+
+      - name: Run Copilot Autopilot
+        run: copilot autopilot "${{ inputs.instruction }}"
