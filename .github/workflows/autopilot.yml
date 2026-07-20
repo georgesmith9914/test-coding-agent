@@ -95,9 +95,16 @@ jobs:
           # Ensure the branch is present remotely before creating a PR.
           git push -u origin "$current_branch" >/dev/null 2>&1 || true
 
-          existing_count="$(gh pr list --head "$current_branch" --base "$base_branch" --state open --json number --jq 'length')"
+          existing_count="$(gh pr list --head "$current_branch" --base "$base_branch" --state all --json number,state,url --jq 'length')"
           if [ "$existing_count" != "0" ]; then
-            echo "Open PR already exists for branch $current_branch."
+            echo "A PR already exists for branch $current_branch."
+            gh pr list --head "$current_branch" --base "$base_branch" --state all --json number,state,url --jq '.[] | "PR #\(.number) [\(.state)] \(.url)"' || true
+            exit 0
+          fi
+
+          ahead_by="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${base_branch}...${current_branch}" --jq '.ahead_by' 2>/dev/null || echo "-1")"
+          if [ "$ahead_by" = "0" ]; then
+            echo "No commits ahead of $base_branch on $current_branch; skipping PR creation."
             exit 0
           fi
 
@@ -137,6 +144,15 @@ jobs:
               -f head="$current_branch" \
               -f base="$base_branch" \
               -f body="$body_content" >/tmp/autopilot_pr_create.json 2>/tmp/autopilot_pr_create.err; then
+              if grep -q "Validation Failed" /tmp/autopilot_pr_create.err 2>/dev/null; then
+                echo "PR create returned Validation Failed. Re-checking existing PRs and branch diff."
+                gh pr list --head "$current_branch" --base "$base_branch" --state all --json number,state,url --jq '.[] | "PR #\(.number) [\(.state)] \(.url)"' || true
+                ahead_by_post="$(GH_TOKEN="$GH_TOKEN_FALLBACK" gh api "repos/${GITHUB_REPOSITORY}/compare/${base_branch}...${current_branch}" --jq '.ahead_by' 2>/dev/null || echo "-1")"
+                if [ "$ahead_by_post" = "0" ]; then
+                  echo "No commits between base and head after fallback check; treating as no-op success."
+                  exit 0
+                fi
+              fi
               echo "PR creation failed via both primary token and github.token fallback."
               cat /tmp/autopilot_pr_create.err || true
               echo "Grant token permissions (Contents: Write, Pull requests: Write) and ensure repo setting allows GitHub Actions to create PRs."
