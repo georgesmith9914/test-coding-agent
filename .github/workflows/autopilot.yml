@@ -7,6 +7,11 @@ on:
         description: "Autopilot instruction"
         required: true
         type: string
+      allow_fallback:
+        description: "Allow deterministic fallback if Copilot fails"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -48,7 +53,6 @@ jobs:
       - name: Run Copilot Autopilot
         id: copilot
         if: ${{ steps.token_check.outputs.token_available == 'true' }}
-        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -57,8 +61,15 @@ jobs:
           set -euxo pipefail
           copilot --autopilot -p "${{ inputs.instruction }}" --allow-all
 
+      - name: Fail when Copilot token is missing
+        if: ${{ steps.token_check.outputs.token_available != 'true' }}
+        run: |
+          echo "COPILOT_GITHUB_TOKEN is missing."
+          echo "Set repo secret COPILOT_GITHUB_TOKEN with a token that has Copilot Requests permission."
+          exit 1
+
       - name: Fallback scripted PR
-        if: ${{ steps.copilot.outcome != 'success' }}
+        if: ${{ inputs.allow_fallback && failure() }}
         env:
           GH_TOKEN: ${{ secrets.PR_CREATOR_TOKEN || github.token }}
           INSTRUCTION: ${{ inputs.instruction }}
