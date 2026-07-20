@@ -22,10 +22,18 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Install Copilot CLI
         run: npm install -g @github/copilot
 
+      - name: Copilot CLI preflight
+        run: |
+          set -euxo pipefail
+          copilot --version
+          copilot autopilot --help
+
       - name: Run Copilot Autopilot
-        run: copilot autopilot "${{ inputs.instruction }}"
+        run: |
+          set -euxo pipefail
+          copilot autopilot "${{ inputs.instruction }}"
