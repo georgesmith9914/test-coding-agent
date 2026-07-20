@@ -34,6 +34,10 @@ jobs:
           copilot --help
 
       - name: Run Copilot Autopilot
+        env:
+          GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}
         run: |
           set -euxo pipefail
           copilot --autopilot -p "${{ inputs.instruction }}" --allow-all
