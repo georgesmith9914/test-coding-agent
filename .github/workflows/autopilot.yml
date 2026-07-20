@@ -73,6 +73,7 @@ jobs:
         if: ${{ steps.copilot.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ secrets.PR_CREATOR_TOKEN || secrets.COPILOT_GITHUB_TOKEN }}
+          GH_TOKEN_FALLBACK: ${{ github.token }}
           INSTRUCTION: ${{ inputs.instruction }}
           WORK_BRANCH: ${{ steps.prep_branch.outputs.work_branch }}
         run: |
@@ -117,17 +118,32 @@ jobs:
           } > "$body_file"
 
           body_content="$(cat "$body_file")"
-          if ! gh api \
+          if gh api \
             --method POST \
             "repos/${GITHUB_REPOSITORY}/pulls" \
             -f title="$title" \
             -f head="$current_branch" \
             -f base="$base_branch" \
             -f body="$body_content" >/tmp/autopilot_pr_create.json 2>/tmp/autopilot_pr_create.err; then
-            echo "PR creation failed via REST API."
+            echo "PR creation succeeded with primary token."
+          else
+            echo "Primary token failed to create PR. Trying github.token fallback."
             cat /tmp/autopilot_pr_create.err || true
-            echo "Ensure PR_CREATOR_TOKEN has Pull requests: Write and Contents: Write, repo access includes ${GITHUB_REPOSITORY}, and org SSO is authorized for the token if required."
-            exit 1
+
+            if ! GH_TOKEN="$GH_TOKEN_FALLBACK" gh api \
+              --method POST \
+              "repos/${GITHUB_REPOSITORY}/pulls" \
+              -f title="$title" \
+              -f head="$current_branch" \
+              -f base="$base_branch" \
+              -f body="$body_content" >/tmp/autopilot_pr_create.json 2>/tmp/autopilot_pr_create.err; then
+              echo "PR creation failed via both primary token and github.token fallback."
+              cat /tmp/autopilot_pr_create.err || true
+              echo "Grant token permissions (Contents: Write, Pull requests: Write) and ensure repo setting allows GitHub Actions to create PRs."
+              exit 1
+            fi
+
+            echo "PR creation succeeded with github.token fallback."
           fi
 
           pr_url="$(jq -r '.html_url // empty' /tmp/autopilot_pr_create.json 2>/dev/null || true)"
