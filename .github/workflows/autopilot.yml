@@ -33,11 +33,22 @@ jobs:
           copilot --version
           copilot --help
 
+      - name: Validate Copilot token secret
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${COPILOT_GITHUB_TOKEN:-}" ]; then
+            echo "Missing required repository secret: COPILOT_GITHUB_TOKEN"
+            echo "Create a Fine-Grained PAT with Copilot Requests permission and add it as COPILOT_GITHUB_TOKEN."
+            exit 1
+          fi
+
       - name: Run Copilot Autopilot
         env:
-          GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}
-          GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}
-          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN || github.token }}
+          GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
         run: |
           set -euxo pipefail
           copilot --autopilot -p "${{ inputs.instruction }}" --allow-all
