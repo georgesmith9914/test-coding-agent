@@ -61,6 +61,52 @@ jobs:
           set -euxo pipefail
           copilot --autopilot -p "${{ inputs.instruction }}" --allow-all
 
+      - name: Ensure PR exists for Copilot branch
+        if: ${{ steps.copilot.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ secrets.PR_CREATOR_TOKEN || secrets.COPILOT_GITHUB_TOKEN }}
+          INSTRUCTION: ${{ inputs.instruction }}
+        run: |
+          set -euo pipefail
+
+          base_branch="${GITHUB_REF_NAME}"
+          current_branch="$(git rev-parse --abbrev-ref HEAD)"
+
+          if [ "$current_branch" = "$base_branch" ]; then
+            echo "Copilot finished on base branch ($base_branch); no feature branch detected for PR creation."
+            exit 1
+          fi
+
+          # Ensure the branch is present remotely before creating a PR.
+          git push -u origin "$current_branch" >/dev/null 2>&1 || true
+
+          existing_count="$(gh pr list --head "$current_branch" --base "$base_branch" --state open --json number --jq 'length')"
+          if [ "$existing_count" != "0" ]; then
+            echo "Open PR already exists for branch $current_branch."
+            exit 0
+          fi
+
+          title="Autopilot: ${INSTRUCTION}"
+          if [ ${#title} -gt 120 ]; then
+            title="${title:0:117}..."
+          fi
+
+          body_file="/tmp/autopilot_pr_body.txt"
+          {
+            echo "Autopilot completed but PR was not created by Copilot token."
+            echo
+            echo "Instruction:"
+            echo
+            echo '```'
+            echo "$INSTRUCTION"
+            echo '```'
+          } > "$body_file"
+
+          if ! gh pr create --base "$base_branch" --head "$current_branch" --title "$title" --body-file "$body_file"; then
+            echo "PR creation failed. Ensure PR_CREATOR_TOKEN has Pull requests: Write and Contents: Write for this repo."
+            exit 1
+          fi
+
       - name: Fail when Copilot token is missing
         if: ${{ steps.token_check.outputs.token_available != 'true' }}
         run: |
