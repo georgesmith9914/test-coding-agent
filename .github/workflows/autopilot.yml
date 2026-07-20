@@ -60,8 +60,9 @@ jobs:
       - name: Fallback scripted PR
         if: ${{ steps.copilot.outcome != 'success' }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PR_CREATOR_TOKEN || github.token }}
           INSTRUCTION: ${{ inputs.instruction }}
+          REPO: ${{ github.repository }}
         run: |
           set -euxo pipefail
 
@@ -103,8 +104,13 @@ jobs:
             echo '```'
           } > "$body_file"
 
-          gh pr create \
+          if gh pr create \
             --base "${GITHUB_REF_NAME}" \
             --head "$branch" \
             --title "Fallback autopilot: add subtract function with tests" \
-            --body-file "$body_file"
+            --body-file "$body_file"; then
+            echo "Fallback PR created successfully."
+          else
+            echo "Automated PR creation is blocked by repository/org policy for this token."
+            echo "Create PR manually at: https://github.com/${REPO}/pull/new/${branch}"
+          fi
