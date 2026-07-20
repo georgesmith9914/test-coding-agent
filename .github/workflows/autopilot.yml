@@ -1,5 +1,7 @@
 name: Copilot Autopilot
 
+run-name: "Autopilot: ${{ inputs.instruction }}"
+
 on:
   workflow_dispatch:
     inputs:
