@@ -116,9 +116,26 @@ jobs:
             echo '```'
           } > "$body_file"
 
-          if ! gh pr create --base "$base_branch" --head "$current_branch" --title "$title" --body-file "$body_file"; then
-            echo "PR creation failed. Ensure PR_CREATOR_TOKEN has Pull requests: Write and Contents: Write for this repo."
+          body_content="$(cat "$body_file")"
+          if ! gh api \
+            --method POST \
+            "repos/${GITHUB_REPOSITORY}/pulls" \
+            -f title="$title" \
+            -f head="$current_branch" \
+            -f base="$base_branch" \
+            -f body="$body_content" >/tmp/autopilot_pr_create.json 2>/tmp/autopilot_pr_create.err; then
+            echo "PR creation failed via REST API."
+            cat /tmp/autopilot_pr_create.err || true
+            echo "Ensure PR_CREATOR_TOKEN has Pull requests: Write and Contents: Write, repo access includes ${GITHUB_REPOSITORY}, and org SSO is authorized for the token if required."
             exit 1
+          fi
+
+          pr_url="$(jq -r '.html_url // empty' /tmp/autopilot_pr_create.json 2>/dev/null || true)"
+          if [ -n "$pr_url" ]; then
+            echo "PR created: $pr_url"
+          else
+            echo "PR created, but could not parse PR URL from API response."
+            cat /tmp/autopilot_pr_create.json || true
           fi
 
       - name: Fail when Copilot token is missing
