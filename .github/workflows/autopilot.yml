@@ -31,9 +31,9 @@ jobs:
         run: |
           set -euxo pipefail
           copilot --version
-          copilot autopilot --help
+          copilot --help
 
       - name: Run Copilot Autopilot
         run: |
           set -euxo pipefail
-          copilot autopilot "${{ inputs.instruction }}"
+          copilot --autopilot -p "${{ inputs.instruction }}" --allow-all
