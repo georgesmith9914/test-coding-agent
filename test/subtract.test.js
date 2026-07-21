@@ -23,3 +23,11 @@ test("subtract handles zero", () => {
 test("subtract handles decimal numbers", () => {
   assert.ok(Math.abs(subtract(5.5, 2.2) - 3.3) < 1e-9);
 });
+
+test("subtract returns zero when operands are equal", () => {
+  assert.equal(subtract(7, 7), 0);
+});
+
+test("subtract handles large numbers", () => {
+  assert.equal(subtract(1_000_000_000, 1), 999_999_999);
+});
