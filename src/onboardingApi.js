@@ -20,9 +20,11 @@ let nextItemId = 1;
  * @returns {object} The created user record.
  */
 export function createUser(overrides = {}) {
+  const id = overrides.id ?? `user-${users.size + 1}`;
   const user = {
-    id: overrides.id ?? `user-${users.size + 1}`,
+    id,
     displayName: overrides.displayName ?? "New User",
+    email: overrides.email ?? `${id}@example.com`,
     items: [],
     flags: {
       new: true,
